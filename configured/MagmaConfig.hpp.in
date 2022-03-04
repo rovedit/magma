@@ -1,0 +1,6 @@
+// When CMake configures this header file
+// the values for @MAGMA_VERSION_MAJOR@ (and MINOR)
+// will be replaced.
+
+#define MAGMA_VERSION_MAJOR @MAGMA_VERSION_MAJOR@
+#define MAGMA_VERSION_MINOR @MAGMA_VERSION_MINOR@
