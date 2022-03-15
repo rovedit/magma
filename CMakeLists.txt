@@ -1,9 +1,10 @@
-##################################################    Project     ##################################################
+##########################################    Project     ##########################################
 cmake_minimum_required(VERSION 3.20)
 
 # Set project name & version
-project(magma VERSION 0.1 LANGUAGES CXX)
+project(magma VERSION 1.0.0 LANGUAGES CXX)
 
+# Include directory for CMake modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 # Specify the C++ standard
@@ -13,88 +14,100 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 # Turn on solution folders
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# Configure compiler warning level
 include(set_max_warning_level)
 set_max_warning_level ()
 
-##################################################    Options     ##################################################
-# option(VARIABLE "Descriptor" OFF)
-option(BUILD_TEST "Build test executable" OFF)
+##########################################    Options     ##########################################
+option(MAGMA_BUILD_DEPENDENCIES "Try to build dependencies that are available in extern folder before looking for system libraries." ON)
+option(MAGMA_BUILD_TESTS "Build test executables." OFF)
 
-##################################################    Sources     ##################################################
-include_Directories(
-  # Main Project files
-  ${PROJECT_SOURCE_DIR}/include
-  ${PROJECT_SOURCE_DIR}/source
-)
+######################################    Build Settings     #######################################
+# Set a default build type if none was specified
+# Single-build (Makefiles, ...):
+if(NOT DEFINED CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Debug)
+endif()
 
-# Lib
-file(GLOB SOURCE_LIST
-  "${PROJECT_SOURCE_DIR}/include/*.hpp"
-  "${PROJECT_SOURCE_DIR}/source/*.cpp"
-)
+# Build everything into top level places
+set(BIN_DIR ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_DIR})
+set(LIB_DIR ${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_DIR})
 
-# Test Executable
-file(GLOB TEST_SOURCE_LIST
-  "${PROJECT_SOURCE_DIR}/test/*.hpp"
-  "${PROJECT_SOURCE_DIR}/test/*.cpp"
-)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${BIN_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${BIN_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${BIN_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${BIN_DIR})
 
-##################################################  Dependencies  ##################################################
-# External Dependencies
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIB_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE ${LIB_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_DEBUG ${LIB_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO ${LIB_DIR})
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${LIB_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${LIB_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${LIB_DIR})
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${LIB_DIR})
+
+##########################################  Dependencies  ##########################################
 # Vulkan
 find_package(Vulkan REQUIRED)
-list(APPEND PROJECT_INCLUDES ${Vulkan_INCLUDE_DIR})
-list(APPEND PROJECT_LIBRARIES ${Vulkan_LIBRARIES})
+list(APPEND EXTERN_INCLUDES ${Vulkan_INCLUDE_DIR})
+list(APPEND EXTERN_LIBRARIES ${Vulkan_LIBRARIES})
 
-# Submodule Dependencies:
-## GLM
-add_subdirectory(libraries/glm)
-list(APPEND PROJECT_LIBRARIES glm)
+# GLFW
+if(${MAGMA_BUILD_DEPENDENCIES} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/GLFW)
+  option(GLFW_BUILD_EXAMPLES OFF)
+  option(GLFW_BUILD_TESTS OFF)
+  option(GLFW_BUILD_DOCS OFF)
+  option(GLFW_INSTALL OFF)
+  add_subdirectory(extern/GLFW)
+  list(APPEND EXTERN_LIBRARIES glfw)
+else()
+  find_package(GLFW REQUIRED)
+endif()
 
-## GLFW
-add_subdirectory(libraries/glfw)
-list(APPEND PROJECT_INCLUDES libraries/glfw/include)
-list(APPEND PROJECT_LIBRARIES glfw ${GLFW_LIBRARIES})
+# GLM
+if(${MAGMA_BUILD_DEPENDENCIES} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/GLM)
+  add_subdirectory(extern/GLM)
+  list(APPEND EXTERN_LIBRARIES glm)
+else()
+  find_package(GLM REQUIRED)
+endif()
 
-# ADD LIBRARIES HERE.
-# Examples:
-# - Header Only:
-#   find_package  (GLM REQUIRED)
-#   import_library(GLM_INCLUDE_DIRS)
-# - Identical Debug and Release:
-#   find_package  (OpenGL REQUIRED)
-#   import_library(OPENGL_INCLUDE_DIR OPENGL_LIBRARIES)
-# - Separate Debug and Release:
-#   find_package  (Boost REQUIRED iostreams)
-#   import_library(Boost_INCLUDE_DIRS Boost_IOSTREAMS_LIBRARY_DEBUG Boost_IOSTREAMS_LIBRARY_RELEASE)
-# - You may also set the PROJECT_INCLUDE_DIRS and PROJECT_LIBRARIES instead of using import_library.
+# spdlog
+if(${MAGMA_BUILD_DEPENDENCIES} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/spdlog)
+  add_subdirectory(extern/spdlog)
+  list(APPEND EXTERN_LIBRARIES spdlog)
+else()
+  find_package(spdlog REQUIRED)
+endif()
 
-##################################################    Targets     ##################################################
+# Folder grouping
+foreach(TARGET_NAME glm glfw spdlog)
+  set_property(TARGET ${TARGET_NAME} PROPERTY FOLDER "extern")
+endforeach()
 
-add_library(magma STATIC ${SOURCE_LIST})
 
-#set_property(TARGET ${PROJECT_NAME} PROPERTY FOLDER "Library")
 
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_INCLUDES} )
+###########################################    Files     ###########################################
+file(GLOB_RECURSE MAGMA_SOURCES
+  "src/*.cc"
+)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_LIBRARIES})
+file(GLOB_RECURSE MAGMA_HEADERS
+  "src/*.hh"
+)
 
-# Configure header file to pass version number to source code
-#configure_file(configured/MagmaConfig.hpp.in MagmaConfig.hpp)
-#
-#target_include_directories(magma PUBLIC
-#                            "${PROJECT_BINARY_DIR}"
-#                          )
+set(MAGMA_FILES 
+  ${MAGMA_HEADERS}
+  ${MAGMA_SOURCES}
+)
 
-# target_compile_definitions(target public/private precompiler-definition)
+include(assign_source_group)
+assign_source_group(${MAGMA_FILES})
 
-IF(${BUILD_TEST})
-  set(TEST_NAME "HelloTriangle")
+##############################################  Build  #############################################
 
-  add_executable(${TEST_NAME} ${TEST_SOURCE_LIST})
+add_subdirectory(src)
 
-  set_property(TARGET ${TEST_NAME} PROPERTY FOLDER "Tests")
-
-  target_link_libraries(${TEST_NAME} PRIVATE ${PROJECT_NAME} ${PROJECT_LIBRARIES})
-ENDIF()
-
+add_subdirectory(tests)

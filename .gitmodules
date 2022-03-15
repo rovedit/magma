@@ -1,6 +1,9 @@
-[submodule "libraries/glfw"]
-	path = libraries/glfw
+[submodule "Extern/GLFW"]
+	path = Extern/GLFW
 	url = https://github.com/glfw/glfw.git
-[submodule "libraries/glm"]
-	path = libraries/glm
+[submodule "Extern/GLM"]
+	path = Extern/GLM
 	url = https://github.com/g-truc/glm.git
+[submodule "Extern/spdlog"]
+	path = Extern/spdlog
+	url = https://github.com/gabime/spdlog.git

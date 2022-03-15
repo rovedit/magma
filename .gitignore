@@ -35,4 +35,5 @@
 *.spv
 
 # Folders
-build
+/build*
+bin
