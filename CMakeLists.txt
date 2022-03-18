@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 # Set project name & version
-project(magma VERSION 1.0.0 LANGUAGES CXX)
+project(magma VERSION 1.0.0 LANGUAGES "CXX")
 
 # Include directory for CMake modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -60,7 +60,7 @@ if(${MAGMA_BUILD_DEPENDENCIES} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/GLF
   option(GLFW_BUILD_TESTS OFF)
   option(GLFW_BUILD_DOCS OFF)
   option(GLFW_INSTALL OFF)
-  add_subdirectory(extern/GLFW)
+  add_subdirectory(extern/glfw)
   list(APPEND EXTERN_LIBRARIES glfw)
 else()
   find_package(GLFW REQUIRED)
@@ -68,7 +68,7 @@ endif()
 
 # GLM
 if(${MAGMA_BUILD_DEPENDENCIES} AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/extern/GLM)
-  add_subdirectory(extern/GLM)
+  add_subdirectory(extern/glm)
   list(APPEND EXTERN_LIBRARIES glm)
 else()
   find_package(GLM REQUIRED)
@@ -91,23 +91,50 @@ endforeach()
 
 ###########################################    Files     ###########################################
 file(GLOB_RECURSE MAGMA_SOURCES
-  "src/*.cc"
+    "src/*.cc"
+    "src/*.hh"
+    "data/shaders/*.vert"
+    "data/shaders/*.frag"
 )
 
-file(GLOB_RECURSE MAGMA_HEADERS
-  "src/*.hh"
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${MAGMA_SOURCES})
+
+###########################################  Build magma  ##########################################
+
+add_executable(${PROJECT_NAME} ${MAGMA_SOURCES})
+
+target_include_directories(${PROJECT_NAME} PUBLIC src ${EXTERN_INCLUDES})
+target_link_libraries(${PROJECT_NAME} PUBLIC ${EXTERN_LIBRARIES})
+
+# Set the working directory correctly
+set_target_properties(${PROJECT_NAME}
+  PROPERTIES
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
+    VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/bin"
 )
 
-set(MAGMA_FILES 
-  ${MAGMA_HEADERS}
-  ${MAGMA_SOURCES}
-)
+###########################################  Build tests  ##########################################
 
-include(assign_source_group)
-assign_source_group(${MAGMA_FILES})
+if(MAGMA_BUILD_TESTS)
+  # Gather magmas sources without its entrypoint (main.cc)
+  list(APPEND MAGMA_TEST_FILES ${MAGMA_SOURCES})
+  list(REMOVE_ITEM  MAGMA_TEST_FILES ${PROJECT_SOURCE_DIR}/src/main.cc)
 
-##############################################  Build  #############################################
+  # Gather all test scenarios
+  file(GLOB TEST_CPPS *.cc)
+    foreach(_SOURCE ${TEST_CPPS})
+      get_filename_component(_NAME ${_SOURCE} NAME_WE)
+      add_executable        (${_NAME} ${_SOURCE})
 
-add_subdirectory(src)
+      target_include_directories(${_NAME}
+      PUBLIC
+          ${EXTERN_INCLUDES}
+      )
+      target_link_libraries(${_NAME}
+      PUBLIC
+          ${EXTERN_LIBRARIES}
+      )
 
-add_subdirectory(tests)
+      set_property          (TARGET ${_NAME} PROPERTY FOLDER tests)
+    endforeach()
+endif()

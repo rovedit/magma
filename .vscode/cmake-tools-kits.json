@@ -1,0 +1,7 @@
+{
+    "name": "Clang 12.0.0 x86_64-pc-windows-msvc",
+    "compilers": {
+      "C": "C:\\Program Files\\LLVM\\bin\\clang.exe",
+      "CXX": "C:\\Program Files\\LLVM\\bin\\clang++.exe"
+    }
+  }
